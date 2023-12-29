@@ -5,8 +5,9 @@ import (
 )
 
 type Car struct {
-	ID    uuid.UUID
-	Model string
-	Brand string
-	Year  int
+	ID       uuid.UUID
+	Model    string
+	Brand    string
+	Year     int
+	DriverID uuid.UUID
 }

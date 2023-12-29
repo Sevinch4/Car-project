@@ -7,8 +7,9 @@ import (
 )
 
 type Store struct {
-	DB         *sql.DB
-	CarStorage carRepo
+	DB            *sql.DB
+	CarStorage    carRepo
+	DriverStorage driverRepo
 }
 
 func New(cfg config.Config) (Store, error) {
@@ -21,8 +22,11 @@ func New(cfg config.Config) (Store, error) {
 	}
 
 	carR := NewCarRepo(db)
+	driver := NewDriverRepo(db)
+
 	return Store{
-		DB:         db,
-		CarStorage: carR,
+		DB:            db,
+		CarStorage:    carR,
+		DriverStorage: driver,
 	}, nil
 }

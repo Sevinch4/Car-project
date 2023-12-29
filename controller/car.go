@@ -10,8 +10,7 @@ import (
 func (c Controller) CreateCar() {
 	car := getCarInfo()
 
-	if car.Year <= 0 || car.Year > time.Now().Year()+1 {
-		fmt.Println("year input is not correct")
+	if !checkCarInfo(car) {
 		return
 	}
 	id, err := c.Store.CarStorage.Insert(car)
@@ -21,7 +20,13 @@ func (c Controller) CreateCar() {
 	}
 	fmt.Println("id: ", id)
 }
-
+func checkCarInfo(car models.Car) bool {
+	if car.Year <= 0 || car.Year > time.Now().Year()+1 {
+		fmt.Println("year input is not correct")
+		return false
+	}
+	return true
+}
 func (c Controller) GetCarByID() {
 	idStr := ""
 	fmt.Print("input id: ")
@@ -85,14 +90,14 @@ func (c Controller) DeleteCar() {
 
 func getCarInfo() models.Car {
 	var (
-		idStr, model, brand string
-		year, cmd           int
+		idStr, model, brand, driverID string
+		year, cmd                     int
 	)
 a:
 	fmt.Print(`enter command:
-				1 - create 
-				2 - update
-`)
+					1 - create car
+					2 - update car
+	`)
 	fmt.Scan(&cmd)
 
 	if cmd == 2 {
@@ -104,12 +109,18 @@ a:
 
 		fmt.Print("input year: ")
 		fmt.Scan(&year)
+
+		fmt.Print("input driverID: ")
+		fmt.Scan(&driverID)
 	} else if cmd == 1 {
 		fmt.Print("input model and brand: ")
 		fmt.Scan(&model, &brand)
 
 		fmt.Print("input year: ")
 		fmt.Scan(&year)
+
+		fmt.Print("input driverID: ")
+		fmt.Scan(&driverID)
 	} else {
 		fmt.Println("not found")
 		goto a
@@ -117,16 +128,18 @@ a:
 
 	if idStr != "" {
 		return models.Car{
-			ID:    uuid.MustParse(idStr),
-			Model: model,
-			Brand: brand,
-			Year:  year,
+			ID:       uuid.MustParse(idStr),
+			Model:    model,
+			Brand:    brand,
+			Year:     year,
+			DriverID: uuid.MustParse(driverID),
 		}
 	}
 
 	return models.Car{
-		Model: model,
-		Brand: brand,
-		Year:  year,
+		Model:    model,
+		Brand:    brand,
+		Year:     year,
+		DriverID: uuid.MustParse(driverID),
 	}
 }
