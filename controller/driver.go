@@ -2,130 +2,121 @@ package controller
 
 import (
 	"carProject/models"
+	"carProject/pkg/check"
+	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
+	"net/http"
 )
 
-func (c Controller) CreateDriver() {
-	car := getDriverInfo()
+func (c Controller) Driver(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodPost:
+		c.CreateDriver(w, r)
+	case http.MethodGet:
+		values := r.URL.Query()
+		_, ok := values["id"]
+		if !ok {
+			c.GetDriverList(w, r)
+		} else {
+			c.GetDriverByID(w, r)
+		}
+	case http.MethodPut:
+		c.UpdateDriver(w, r)
+	case http.MethodDelete:
+		c.DeleteDriver(w, r)
+	default:
+		fmt.Println("method not allowed")
+	}
+}
 
-	id, err := c.Store.DriverStorage.Insert(car)
+func (c Controller) CreateDriver(w http.ResponseWriter, r *http.Request) {
+	driver := models.Driver{}
+
+	if err := json.NewDecoder(r.Body).Decode(&driver); err != nil {
+		fmt.Println("error is while decoding data", err.Error())
+		handleResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if !check.PhoneNumber(driver.Phone) {
+		fmt.Println("phone number format is not correct", driver.Phone)
+		handleResponse(w, http.StatusBadRequest, driver)
+		return
+	}
+
+	id, err := c.Store.DriverStorage.Insert(driver)
 	if err != nil {
 		fmt.Println("error is while inserting data", err.Error())
 		return
 	}
-	fmt.Println("id: ", id)
-	fmt.Println("driver added!")
-}
 
-func (c Controller) GetDriverByID() {
-	idStr := ""
-	fmt.Print("input id: ")
-	fmt.Scan(&idStr)
-
-	id, err := uuid.Parse(idStr)
 	if err != nil {
 		fmt.Println("error is while parsing id", err.Error())
 		return
 	}
-	driver, err := c.Store.DriverStorage.GetByID(id)
+	resp, err := c.Store.DriverStorage.GetByID(id)
 	if err != nil {
 		fmt.Println("error is while getting by id", err.Error())
 		return
 	}
-	fmt.Println("driver is: ", driver)
+	handleResponse(w, http.StatusCreated, resp)
 }
 
-func (c Controller) GetDriverList() {
+func (c Controller) GetDriverByID(w http.ResponseWriter, r *http.Request) {
+	values := r.URL.Query()
+	id := values["id"][0]
+	driver, err := c.Store.DriverStorage.GetByID(id)
+	if err != nil {
+		fmt.Println("error is while getting by id", err.Error())
+		handleResponse(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	handleResponse(w, http.StatusOK, driver)
+}
+
+func (c Controller) GetDriverList(w http.ResponseWriter, r *http.Request) {
 	drivers, err := c.Store.DriverStorage.GetList()
 	if err != nil {
 		fmt.Println("error is while getting list", err.Error())
+		handleResponse(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	fmt.Println("drivers: ", drivers)
+
+	handleResponse(w, http.StatusOK, drivers)
 }
 
-func (c Controller) UpdateDriver() {
-	//idStr := ""
-	//fmt.Println("input id: ")
-	//fmt.Scan(&idStr)
-	//
-	//id,err := uuid.Parse(idStr)
-	//if err != nil {
-	//	fmt.Println("while parsing",err.Error())
-	//	return
-	//}
-	driver := getDriverInfo()
+func (c Controller) UpdateDriver(w http.ResponseWriter, r *http.Request) {
+	driver := models.Driver{}
+
+	if err := json.NewDecoder(r.Body).Decode(&driver); err != nil {
+		fmt.Println("error is while decoding data", err.Error())
+		handleResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if !check.PhoneNumber(driver.Phone) {
+		fmt.Println("phone number format is not correct", driver.Phone)
+		handleResponse(w, http.StatusBadRequest, driver)
+		return
+	}
 
 	if err := c.Store.DriverStorage.Update(driver); err != nil {
 		fmt.Println("error is while updating ", err.Error())
 		return
 	}
 	fmt.Println("driver updated!")
+	handleResponse(w, http.StatusOK, driver)
 }
 
-func (c Controller) DeleteDriver() {
-	idStr := ""
-	fmt.Print("input id: ")
-	fmt.Scan(&idStr)
-
-	id, err := uuid.Parse(idStr)
-	if err != nil {
-		fmt.Println("error is while parsing", err.Error())
-		return
-	}
-	if err = c.Store.DriverStorage.Delete(id); err != nil {
+func (c Controller) DeleteDriver(w http.ResponseWriter, r *http.Request) {
+	values := r.URL.Query()
+	id := values["id"][0]
+	if err := c.Store.DriverStorage.Delete(id); err != nil {
 		fmt.Println("error is while deleting", err.Error())
+		handleResponse(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	fmt.Println("driver deleted")
-}
 
-func getDriverInfo() models.Driver {
-	var (
-		idStr, fname, lname, phone string
-		cmd                        int
-	)
-a:
-	fmt.Print(`enter command:
-				1 - create driver
-				2 - update driver
-`)
-	fmt.Scan(&cmd)
-
-	if cmd == 2 {
-		fmt.Print("input id: ")
-		fmt.Scan(&idStr)
-
-		fmt.Print("input full name: ")
-		fmt.Scan(&fname, &lname)
-
-		fmt.Print("input phone: ")
-		fmt.Scan(&phone)
-	} else if cmd == 1 {
-		fmt.Print("input full name: ")
-		fmt.Scan(&fname, &lname)
-
-		fmt.Print("input phone: ")
-		fmt.Scan(&phone)
-	} else {
-		fmt.Println("not found")
-		goto a
-	}
-
-	fullname := fname + " " + lname
-
-	if idStr != "" {
-		return models.Driver{
-			ID:       uuid.MustParse(idStr),
-			FullName: fullname,
-			Phone:    phone,
-		}
-	}
-
-	return models.Driver{
-		FullName: fullname,
-		Phone:    phone,
-	}
-
+	handleResponse(w, http.StatusOK, id)
 }

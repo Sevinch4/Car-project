@@ -25,7 +25,7 @@ func (d driverRepo) Insert(driver models.Driver) (string, error) {
 	return id.String(), nil
 }
 
-func (d driverRepo) GetByID(id uuid.UUID) (models.Driver, error) {
+func (d driverRepo) GetByID(id string) (models.Driver, error) {
 	driver := models.Driver{}
 	if err := d.DB.QueryRow(`select * from driver where id = $1`, id).Scan(&driver.ID,
 		&driver.FullName, &driver.Phone); err != nil {
@@ -60,7 +60,7 @@ func (d driverRepo) Update(driver models.Driver) error {
 	return nil
 }
 
-func (d driverRepo) Delete(id uuid.UUID) error {
+func (d driverRepo) Delete(id string) error {
 	if _, err := d.DB.Exec(`delete from driver where id = $1`, id); err != nil {
 		return err
 	}

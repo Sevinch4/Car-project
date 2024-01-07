@@ -18,14 +18,14 @@ func NewCarRepo(db *sql.DB) carRepo {
 
 func (c carRepo) Insert(car models.Car) (string, error) {
 	id := uuid.New()
-
-	if _, err := c.DB.Exec(`insert into car(id,model,brand,year,driver_id) values ($1,$2,$3,$4,$5)`, id, car.Model, car.Brand, car.Year, car.DriverID); err != nil {
+	driverID := uuid.MustParse(car.DriverID)
+	if _, err := c.DB.Exec(`insert into car(id,model,brand,year,driver_id) values ($1,$2,$3,$4,$5)`, id, car.Model, car.Brand, car.Year, driverID); err != nil {
 		return "", err
 	}
 	return id.String(), nil
 }
 
-func (c carRepo) GetByID(id uuid.UUID) (models.Car, error) {
+func (c carRepo) GetByID(id string) (models.Car, error) {
 	car := models.Car{}
 	if err := c.DB.QueryRow(`select * from car where id = $1`, id).Scan(&car.ID, &car.Model, &car.Brand, &car.Year, &car.DriverID); err != nil {
 		return models.Car{}, err
@@ -61,7 +61,7 @@ func (c carRepo) Update(car models.Car) error {
 	return nil
 }
 
-func (c carRepo) Delete(id uuid.UUID) error {
+func (c carRepo) Delete(id string) error {
 	if _, err := c.DB.Exec(`delete from car where id = $1`, id); err != nil {
 		return err
 	}

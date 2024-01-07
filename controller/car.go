@@ -2,144 +2,135 @@ package controller
 
 import (
 	"carProject/models"
+	"carProject/pkg/check"
+	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
-	"time"
+	"net/http"
 )
 
-func (c Controller) CreateCar() {
-	car := getCarInfo()
+func (c Controller) Car(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodPost:
+		c.CreateCar(w, r)
+	case http.MethodGet:
+		values := r.URL.Query()
+		if _, ok := values["id"]; !ok {
+			c.GetCarList(w, r)
+		} else {
+			c.GetCarByID(w, r)
+		}
+	case http.MethodPut:
+		c.UpdateCar(w, r)
+	case http.MethodDelete:
+		c.DeleteCar(w, r)
 
-	if !checkCarInfo(car) {
+	}
+}
+
+func (c Controller) CreateCar(w http.ResponseWriter, r *http.Request) {
+	car := models.Car{}
+
+	if err := json.NewDecoder(r.Body).Decode(&car); err != nil {
+		fmt.Println("error is while decoding data", err.Error())
+		handleResponse(w, http.StatusBadRequest, err.Error())
 		return
 	}
+
+	fmt.Println(car.Year)
+	if err := check.Year(car.Year); err != nil {
+		fmt.Println("error is while input year", car.Year)
+		handleResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
 	id, err := c.Store.CarStorage.Insert(car)
 	if err != nil {
 		fmt.Println("error is while creating data inside controller err: ", err.Error())
+		handleResponse(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	fmt.Println("id: ", id)
-}
-func checkCarInfo(car models.Car) bool {
-	if car.Year <= 0 || car.Year > time.Now().Year()+1 {
-		fmt.Println("year input is not correct")
-		return false
-	}
-	return true
-}
-func (c Controller) GetCarByID() {
-	idStr := ""
-	fmt.Print("input id: ")
-	fmt.Scan(&idStr)
-
-	id, err := uuid.Parse(idStr)
+	resp, err := c.Store.CarStorage.GetByID(id)
 	if err != nil {
-		fmt.Println("error is while parsing id ", err.Error())
+		fmt.Println("error is while getting by id", err.Error())
+		handleResponse(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+
+	handleResponse(w, http.StatusCreated, resp)
+}
+func (c Controller) GetCarByID(w http.ResponseWriter, r *http.Request) {
+	values := r.URL.Query()
+	id := values["id"][0]
 	car, err := c.Store.CarStorage.GetByID(id)
 	if err != nil {
 		fmt.Println("error is while get by id", err.Error())
+		handleResponse(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	fmt.Println("car is : ", car)
+	handleResponse(w, http.StatusOK, car)
 }
 
-func (c Controller) GetCarList() {
+func (c Controller) GetCarList(w http.ResponseWriter, r *http.Request) {
 	cars, err := c.Store.CarStorage.GetList()
+
 	if err != nil {
 		fmt.Println("error is while getting list", err)
+		handleResponse(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	fmt.Println(cars)
+	handleResponse(w, http.StatusOK, cars)
 }
 
-func (c Controller) UpdateCar() {
-	idStr := ""
-	fmt.Print("input id: ")
-	fmt.Scan(&idStr)
+func (c Controller) UpdateCar(w http.ResponseWriter, r *http.Request) {
+	values := r.URL.Query()
+	id := values["id"][0]
 
-	car := getCarInfo()
+	car := models.Car{}
+
+	if err := json.NewDecoder(r.Body).Decode(&car); err != nil {
+		fmt.Println("error is while decoding data")
+		handleResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if err := check.Year(car.Year); err != nil {
+		fmt.Println("year format is not correct", car.Year)
+		handleResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if car.ID != id {
+		fmt.Println("car ID not mismatch")
+		handleResponse(w, http.StatusBadRequest, car)
+		return
+	}
+
+	car.ID = id
+
 	if err := c.Store.CarStorage.Update(car); err != nil {
 		fmt.Println("error is while updating", err.Error())
+		handleResponse(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	fmt.Println("data updated")
+	resp, err := c.Store.CarStorage.GetByID(id)
+	if err != nil {
+		fmt.Println("eror is while getting by id")
+	}
+
+	handleResponse(w, http.StatusOK, resp)
 }
 
-func (c Controller) DeleteCar() {
-	idStr := ""
-	fmt.Print("input id: ")
-	fmt.Scan(&idStr)
+func (c Controller) DeleteCar(w http.ResponseWriter, r *http.Request) {
+	values := r.URL.Query()
+	id := values["id"][0]
 
-	id, err := uuid.Parse(idStr)
-	if err != nil {
-		fmt.Println("error is while parsing id", err.Error())
-		return
-	}
-
-	if err = c.Store.CarStorage.Delete(id); err != nil {
+	if err := c.Store.CarStorage.Delete(id); err != nil {
 		fmt.Println("error is while deleting data", err.Error())
 		return
 	}
 
+	handleResponse(w, http.StatusOK, id)
 	fmt.Println("data is deleted")
-}
-
-func getCarInfo() models.Car {
-	var (
-		idStr, model, brand, driverID string
-		year, cmd                     int
-	)
-a:
-	fmt.Print(`enter command:
-					1 - create car
-					2 - update car
-	`)
-	fmt.Scan(&cmd)
-
-	if cmd == 2 {
-		fmt.Print("input id: ")
-		fmt.Scan(&idStr)
-
-		fmt.Print("input model and brand: ")
-		fmt.Scan(&model, &brand)
-
-		fmt.Print("input year: ")
-		fmt.Scan(&year)
-
-		fmt.Print("input driverID: ")
-		fmt.Scan(&driverID)
-	} else if cmd == 1 {
-		fmt.Print("input model and brand: ")
-		fmt.Scan(&model, &brand)
-
-		fmt.Print("input year: ")
-		fmt.Scan(&year)
-
-		fmt.Print("input driverID: ")
-		fmt.Scan(&driverID)
-	} else {
-		fmt.Println("not found")
-		goto a
-	}
-
-	if idStr != "" {
-		return models.Car{
-			ID:       uuid.MustParse(idStr),
-			Model:    model,
-			Brand:    brand,
-			Year:     year,
-			DriverID: uuid.MustParse(driverID),
-		}
-	}
-
-	return models.Car{
-		Model:    model,
-		Brand:    brand,
-		Year:     year,
-		DriverID: uuid.MustParse(driverID),
-	}
 }
