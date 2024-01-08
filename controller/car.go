@@ -15,7 +15,7 @@ func (c Controller) Car(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		values := r.URL.Query()
 		if _, ok := values["id"]; !ok {
-			c.GetCarList(w, r)
+			c.GetCarList(w)
 		} else {
 			c.GetCarByID(w, r)
 		}
@@ -70,7 +70,7 @@ func (c Controller) GetCarByID(w http.ResponseWriter, r *http.Request) {
 	handleResponse(w, http.StatusOK, car)
 }
 
-func (c Controller) GetCarList(w http.ResponseWriter, r *http.Request) {
+func (c Controller) GetCarList(w http.ResponseWriter) {
 	cars, err := c.Store.CarStorage.GetList()
 
 	if err != nil {
